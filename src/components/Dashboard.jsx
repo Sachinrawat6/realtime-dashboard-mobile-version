@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { socket } from '../services/socket';
 import { unlockAudio } from '../utils/sound';
+import { unlockSpeech } from '../utils/speech';
 import TailorCuttingStats from './TailorCuttingStats';
 import LocationEmployeeSelector from './LocationEmployeeSelector';
 import TopEmployeesStats from './TopEmployeeStats';
@@ -23,6 +24,7 @@ function Dashboard() {
   useEffect(() => {
     const handleFirstInteraction = () => {
       unlockAudio();
+      unlockSpeech();
       window.removeEventListener('click', handleFirstInteraction);
       window.removeEventListener('touchstart', handleFirstInteraction);
       window.removeEventListener('keydown', handleFirstInteraction);

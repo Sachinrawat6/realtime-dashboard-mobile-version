@@ -1,65 +1,27 @@
 import axios from 'axios';
 import React, { useEffect, useState, useCallback } from 'react';
 import { playNotificationSound } from '../utils/sound';
+import { speakEmployeeUpdate } from '../utils/speech';
 
 const ProductPage = ({ data }) => {
   const [loading, setLoading] = useState(true);
   const [styleId, setStyleId] = useState('');
   const [error, setError] = useState(null);
 
+  // Announce which employee scanned which order/style. Runs once per
+  // `data` change (not on every render) so the utterance isn't cancelled
+  // mid-sentence by unrelated re-renders.
   useEffect(() => {
-    const loadVoices = () => {
-      window.speechSynthesis.getVoices();
-    };
+    speakEmployeeUpdate({
+      employeeName: data?.[0]?.employees?.user_name?.split(' / ')[0] || 'अज्ञात',
+      styleNumber: data?.[0]?.orders_2?.style_number,
+      orderId: data?.[0]?.order_id,
+    });
 
-    // Initial load
-    loadVoices();
-
-    // Some browsers need this event
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
-    // Cleanup
     return () => {
-      window.speechSynthesis.onvoiceschanged = null;
       window.speechSynthesis.cancel();
     };
   }, [data]);
-
-  const speakInfo = () => {
-    if (!data?.[0]?.orders_2?.style_number) return;
-
-    // Speech synthesis को stop करें अगर पहले से चल रहा हो
-    window.speechSynthesis.cancel();
-
-    const styleNo = data[0].orders_2.style_number;
-    const employeeName = data[0]?.employees?.user_name?.split(' / ')[0] || 'अज्ञात';
-
-    const text = `Style नंबर ${styleNo} के लिए कर्मचारी ${employeeName} है।`;
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.8; // Speed slow करें
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    // Hindi voice ढूंढें
-    const availableVoices = window.speechSynthesis.getVoices();
-    const hindiVoice = availableVoices.find(
-      (v) =>
-        v.lang.includes('hi') || v.lang.includes('IN') || v.name.toLowerCase().includes('hindi')
-    );
-
-    if (hindiVoice) {
-      utterance.voice = hindiVoice;
-    }
-
-    utterance.onerror = (event) => console.error('Speech error:', event);
-
-    window.speechSynthesis.speak(utterance);
-  };
-
-  speakInfo();
 
   const PRODUCT_API = 'https://inventorybackend-m1z8.onrender.com/api/product';
 

@@ -13,8 +13,23 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
   const [currentStyleNumber, setCurrentStyleNumber] = useState('');
   const [scrollIndex, setScrollIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [itemsPerPage, setItemsPerPage] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768 ? 10 : 5
+  );
   const tableContainerRef = useRef(null);
   const scrollIntervalRef = useRef(null);
+
+  // Show more rows per page on mobile screens
+  useEffect(() => {
+    const mobileQuery = window.matchMedia('(max-width: 767px)');
+    const updateItemsPerPage = () => {
+      setItemsPerPage(mobileQuery.matches ? 10 : 5);
+      setScrollIndex(0);
+    };
+    updateItemsPerPage();
+    mobileQuery.addEventListener('change', updateItemsPerPage);
+    return () => mobileQuery.removeEventListener('change', updateItemsPerPage);
+  }, []);
 
   const employeeImages = {
     sudhan: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361766/sudhan_k5no1a.jpg',
@@ -147,7 +162,7 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
       scrollIntervalRef.current = setInterval(() => {
         setScrollIndex((prevIndex) => {
           const displayData = getDisplayData();
-          if (displayData.length <= 5) return 0; // No need to scroll if less than 5 items
+          if (displayData.length <= itemsPerPage) return 0; // No need to scroll if not enough items
 
           const nextIndex = prevIndex + 1;
           // Reset to 0 if we've reached the end
@@ -163,7 +178,7 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
         clearInterval(scrollIntervalRef.current);
       }
     };
-  }, [isPaused, isProductShow, getDisplayData]);
+  }, [isPaused, isProductShow, getDisplayData, itemsPerPage]);
 
   // Handle recent updates with location filtering
   useEffect(() => {
@@ -252,13 +267,12 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
   // Get visible data based on scroll index
   const getVisibleData = useCallback(() => {
     const displayData = getDisplayData();
-    const itemsPerPage = 5; // Show 5 employees at a time
 
     if (displayData.length <= itemsPerPage) {
       return displayData;
     }
 
-    // Get the next 5 items starting from scrollIndex
+    // Get the next `itemsPerPage` items starting from scrollIndex
     const visibleData = [];
     for (let i = 0; i < itemsPerPage; i++) {
       const index = (scrollIndex + i) % displayData.length;
@@ -266,7 +280,7 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
     }
 
     return visibleData;
-  }, [getDisplayData, scrollIndex]);
+  }, [getDisplayData, scrollIndex, itemsPerPage]);
 
   // Get style number for a specific employee
   const getStyleNumberForEmployee = useCallback(
@@ -412,7 +426,7 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
   const Table = React.memo(({ title, data, icon, iconColor }) => {
     const visibleData = getVisibleData();
     const displayData = getDisplayData();
-    const hasEnoughData = displayData.length > 5;
+    const hasEnoughData = displayData.length > itemsPerPage;
 
     return (
       <div className="bg-white rounded-2xl border border-gray-200 relative">
@@ -493,16 +507,16 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
             <div className="px-6 py-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
-                  Showing {scrollIndex + 1} to {Math.min(scrollIndex + 5, displayData.length)} of{' '}
+                  Showing {scrollIndex + 1} to {Math.min(scrollIndex + itemsPerPage, displayData.length)} of{' '}
                   {displayData.length} employees
                 </div>
                 <div className="flex gap-1">
-                  {Array.from({ length: Math.min(10, Math.ceil(displayData.length / 5)) }).map(
+                  {Array.from({ length: Math.min(10, Math.ceil(displayData.length / itemsPerPage)) }).map(
                     (_, i) => (
                       <div
                         key={i}
                         className={`w-2 h-2 rounded-full ${
-                          Math.floor(scrollIndex / 5) === i ? 'bg-blue-500' : 'bg-gray-300'
+                          Math.floor(scrollIndex / itemsPerPage) === i ? 'bg-blue-500' : 'bg-gray-300'
                         }`}
                       ></div>
                     )
