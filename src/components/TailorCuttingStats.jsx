@@ -3,6 +3,7 @@ import { FaTshirt, FaUser, FaCut, FaCrown, FaChevronUp, FaChevronDown } from 're
 import ProductPage from './ProductPage';
 import { playNotificationSound } from '../utils/sound';
 import { calculatePerHourAverage } from '../utils/stats';
+import { getEmployeeImage } from '../utils/employeeImages';
 
 function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, productDetails }) {
   const [tailorData, setTailorData] = useState([]);
@@ -30,43 +31,6 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
     mobileQuery.addEventListener('change', updateItemsPerPage);
     return () => mobileQuery.removeEventListener('change', updateItemsPerPage);
   }, []);
-
-  const employeeImages = {
-    sudhan: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361766/sudhan_k5no1a.jpg',
-    aslam: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770288946/aslam_tqme8r.webp',
-    nurul: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361765/nurul_fbkhoi.jpg',
-    'sah mohammad miyan':
-      'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770288949/shan_xv4zcx.webp',
-    'vikash kumar':
-      'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361769/vikas_n4kwta.jpg',
-    'rizwan mohammad':
-      'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361766/rizwan_iipcjq.jpg',
-    'subhash cutting master':
-      'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361767/subhash_tfhx6k.jpg',
-    shailendar:
-      'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361766/shailendar_mdmwqq.jpg',
-    mukhtar: 'https://res.cloudinary.com/der6k8zbm/image/upload/v1764168202/mukhtar_dqciu4.jpg',
-    mahesh: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770288948/mahesh_jr3e2j.webp',
-    'naimuddin ansari':
-      'https://res.cloudinary.com/der6k8zbm/image/upload/v1764168199/niamuddin_iyhh8r.jpg',
-    ranjeet: 'https://res.cloudinary.com/der6k8zbm/image/upload/v1764168199/niamuddin_iyhh8r.jpg',
-    'mobarak miyo':
-      'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361770/mubarak_kg8i4f.jpg',
-    khurshid: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770288947/khurshid_sosa9x.webp',
-    nasim: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770448904/nasim_jqrqzx_fq1djl.jpg',
-    qamaruddn:
-      'https://res.cloudinary.com/der6k8zbm/image/upload/v1764168200/qamaruddin_x2htlc.jpg',
-    dilshad: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361764/dilshad_cuyrgt.jpg',
-    surendra: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361767/surendar_teupip.jpg',
-    samsul: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361765/samsul_frnxp0.jpg',
-    inamul: 'https://res.cloudinary.com/der6k8zbm/image/upload/v1764168201/inamul_atsm3g.jpg',
-    rampreet: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361770/rampreet_bnyrbx.jpg',
-    'idrees miyan':
-      'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770361766/idrish_k0i3zd.jpg',
-    pooja: 'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770288947/pooja_b17nmm.webp',
-    'manish kumar':
-      'https://res.cloudinary.com/dlqbbwdc5/image/upload/v1770288946/golu_rkbcoi.webp',
-  };
 
   // Memoized duration calculation
   const calculateDuration = useCallback((firstTime, lastTime) => {
@@ -190,7 +154,8 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
         const isTailorUpdate =
           location.includes('tailor scan 2') ||
           location.includes('cutting master') ||
-          location.includes('master');
+          location.includes('master') ||
+          location.includes('kharcha');
         const isCuttingUpdate = location.includes('cutting') || location.includes('master');
 
         // Only add to updates if it matches the current selector or no selector is set
@@ -357,7 +322,7 @@ function TailorCuttingStats({ groupedData, employeeScans, recentUpdates, product
               >
                 <img
                   className="w-full h-full object-cover rounded-full"
-                  src={employeeImages[item.employee?.split(' / ')[0].toLowerCase()]}
+                  src={getEmployeeImage(item.employee)}
                   alt={item.employee?.split(' / ')[0]}
                 />
               </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { socket } from '../services/socket';
 import { unlockAudio } from '../utils/sound';
 import { unlockSpeech } from '../utils/speech';
@@ -10,6 +10,9 @@ import Navbar from './Navbar';
 import ProductPage from './ProductPage';
 import PicklistDashboardPage from '../pages/PicklistDashboardPage';
 
+const SCAN_API = 'https://realtime-backend-673j.onrender.com/api/scan';
+const todayStr = () => new Date().toISOString().split('T')[0];
+
 function Dashboard() {
   const [rows, setRows] = useState([]);
   const [groupedData, setGroupedData] = useState({});
@@ -17,6 +20,13 @@ function Dashboard() {
   const [recentUpdates, setRecentUpdates] = useState([]);
   const [activeTab, setActiveTab] = useState(0);
   const [styleDetails, setStyleDetails] = useState([]);
+
+  // Date filter for /api/scan: 'today' (live), 'single' (one date), 'range' (start-end)
+  const [dateFilterMode, setDateFilterMode] = useState('today');
+  const [singleDate, setSingleDate] = useState(todayStr());
+  const [rangeStart, setRangeStart] = useState(todayStr());
+  const [rangeEnd, setRangeEnd] = useState(todayStr());
+  const [isLoadingScans, setIsLoadingScans] = useState(false);
 
   // Unlock audio playback on first user interaction so later
   // websocket-triggered sounds play reliably (browsers block
@@ -117,22 +127,44 @@ function Dashboard() {
     return updates;
   };
 
-  // INITIAL LOAD
-  useEffect(() => {
-    fetch('https://realtime-backend-673j.onrender.com/api/scan')
-      // fetch("http://localhost:5000/api/scan")
+  // Build the /api/scan URL for the current date filter
+  const buildScanUrl = useCallback(() => {
+    if (dateFilterMode === 'range' && rangeStart && rangeEnd) {
+      // Backend filters with `endDate` as an exclusive upper bound
+      // (scanned_timestamp < endDate 00:00:00), which would silently drop
+      // every scan on the selected end date. Send the day after instead so
+      // the whole end date is included.
+      const endExclusive = new Date(rangeEnd);
+      endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+      const endDateParam = endExclusive.toISOString().split('T')[0];
 
+      return `${SCAN_API}?startDate=${rangeStart}&endDate=${endDateParam}`;
+    }
+    if (dateFilterMode === 'single' && singleDate) {
+      return `${SCAN_API}?date=${singleDate}`;
+    }
+    return SCAN_API;
+  }, [dateFilterMode, singleDate, rangeStart, rangeEnd]);
+
+  // LOAD SCAN DATA (re-runs whenever the date filter changes)
+  useEffect(() => {
+    setIsLoadingScans(true);
+    fetch(buildScanUrl())
       .then((res) => res.json())
       .then((data) => {
         setRows(data.data);
         setGroupedData(calculateGroups(data.data));
         setEmployeeScans(processEmployeeScans(data.data));
-      });
-  }, []);
+      })
+      .catch((err) => console.error('Failed to load scan data:', err))
+      .finally(() => setIsLoadingScans(false));
+  }, [buildScanUrl]);
 
-  // REALTIME UPDATES
+  // REALTIME UPDATES (only relevant while viewing today's live data)
   useEffect(() => {
     const handleNewData = (newRows) => {
+      if (dateFilterMode !== 'today') return;
+
       // set style details
       setStyleDetails(newRows);
       // Track which employees are being updated
@@ -157,7 +189,7 @@ function Dashboard() {
 
     socket.on('new-data', handleNewData);
     return () => socket.off('new-data', handleNewData);
-  }, [rows]);
+  }, [rows, dateFilterMode]);
 
   const renderActiveComponent = () => {
     switch (activeTab) {
@@ -188,10 +220,92 @@ function Dashboard() {
     }
   };
 
+  const today = todayStr();
+
   return (
     <div className="h-screen bg-gray-900 overflow-hidden flex flex-col">
       {/* Navigation Bar */}
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* Date Filter Bar (Picklist Report tab has its own date picker) */}
+      {activeTab !== 3 && (
+        <div className="bg-gray-800 border-b border-gray-700 px-2 py-2 sm:px-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 bg-gray-900 rounded-lg p-1">
+              <button
+                onClick={() => setDateFilterMode('today')}
+                className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium transition-colors ${
+                  dateFilterMode === 'today'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                Today (Live)
+              </button>
+              <button
+                onClick={() => setDateFilterMode('single')}
+                className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium transition-colors ${
+                  dateFilterMode === 'single'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                Pick Date
+              </button>
+              <button
+                onClick={() => setDateFilterMode('range')}
+                className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium transition-colors ${
+                  dateFilterMode === 'range'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                Date Range
+              </button>
+            </div>
+
+            {dateFilterMode === 'today' && (
+              <span className="flex items-center gap-1.5 text-[11px] sm:text-xs text-green-400">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                Live updates on
+              </span>
+            )}
+
+            {dateFilterMode === 'single' && (
+              <input
+                type="date"
+                value={singleDate}
+                max={today}
+                onChange={(e) => setSingleDate(e.target.value)}
+                className="border border-gray-600 bg-gray-900 text-white rounded-lg px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            )}
+
+            {dateFilterMode === 'range' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={rangeStart}
+                  max={rangeEnd || today}
+                  onChange={(e) => setRangeStart(e.target.value)}
+                  className="border border-gray-600 bg-gray-900 text-white rounded-lg px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-gray-400 text-xs">to</span>
+                <input
+                  type="date"
+                  value={rangeEnd}
+                  min={rangeStart}
+                  max={today}
+                  onChange={(e) => setRangeEnd(e.target.value)}
+                  className="border border-gray-600 bg-gray-900 text-white rounded-lg px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {isLoadingScans && <span className="text-[11px] sm:text-xs text-gray-400">Loading…</span>}
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">{renderActiveComponent()}</div>
